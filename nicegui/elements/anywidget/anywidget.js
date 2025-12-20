@@ -39,7 +39,21 @@ export default {
         this.callbacks[event]?.forEach((cb) => cb(value));
       },
       send: function (content, callbacks, buffers) {
-        console.warn("anywidget.send() is not yet implemented in NiceGUI", content);
+        let buffersHex = null;
+        if (buffers) {
+          const toHex = (buf) => {
+            const uint8View = new Uint8Array(buf);
+            if (typeof uint8View.toHex === "function") {
+              return uint8View.toHex();
+            }
+            return Array.from(uint8View)
+              .map((b) => b.toString(16).padStart(2, "0"))
+              .join("");
+          };
+          buffersHex = buffers.map((b) => toHex(b));
+        }
+        emit_to_py("message", { content, buffersHex });
+        if (callbacks) callbacks();
       },
     };
 

@@ -51,6 +51,12 @@ class SlideEventArguments(UiEventArguments):
 
 
 @dataclass(**KWONLY_SLOTS)
+class AnyWidgetMessageEventArguments(UiEventArguments):
+    content: str
+    buffers: list[bytes] | None = None
+
+
+@dataclass(**KWONLY_SLOTS)
 class EChartComponentClickEventArguments(UiEventArguments):
     component_type: str
     name: str | None

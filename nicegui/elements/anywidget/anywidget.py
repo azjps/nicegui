@@ -5,6 +5,15 @@ import inspect
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from typing_extensions import Self
+
+from nicegui.events import (
+    AnyWidgetMessageEventArguments,
+    GenericEventArguments,
+    Handler,
+    handle_event,
+)
+
 from ... import helpers, optional_features
 from ..mixins.value_element import ValueElement
 
@@ -17,7 +26,8 @@ if importlib.util.find_spec('anywidget'):
 class AnyWidget(ValueElement, component='anywidget.js', dependencies=['lib/widget.js']):
     VALUE_PROP: str = 'traits'
 
-    def __init__(self, widget: anywidget.AnyWidget, *, throttle: float = 0) -> None:
+    def __init__(self, widget: anywidget.AnyWidget, *, throttle: float = 0,
+                 on_message: Handler[AnyWidgetMessageEventArguments] | None = None) -> None:
         """AnyWidget
 
         `anywidget <https://anywidget.dev/en/getting-started/>`_ is a library that allows you to
@@ -44,6 +54,25 @@ class AnyWidget(ValueElement, component='anywidget.js', dependencies=['lib/widge
         self._props['esm_content'] = _get_attribute(widget, '_esm')
         self._props['css_content'] = _get_attribute(widget, '_css')
         widget.observe(lambda change: self.run_method('update_trait', change['name'], change['new']), self._traits)
+        if on_message:
+            self.on_message(on_message)
+
+    def on_message(self, callback: Handler[AnyWidgetMessageEventArguments]) -> Self:
+        """Add a callback to be invoked when a message is sent from the AnyWidget.
+
+        *Added in version 3.5.0*
+        """
+        def handle_message(e: GenericEventArguments) -> None:
+            def _decode_buffershex(buffershex: list[str] | None) -> list[bytes] | None:
+                if buffershex is None:
+                    return None
+                return [bytes.fromhex(bh) for bh in buffershex]
+            handle_event(callback, AnyWidgetMessageEventArguments(
+                sender=self, client=self.client,
+                content=e.args.get('content', ''),
+                buffers=_decode_buffershex(e.args.get('buffersHex'))))
+        self.on('message', handle_message)
+        return self
 
     def _handle_value_change(self, value: Any) -> None:
         """Update the widget's state when the value changes from frontend"""
